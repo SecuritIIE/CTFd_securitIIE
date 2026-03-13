@@ -23,33 +23,10 @@
         {% endif %}
 
         {% with form = Forms.auth.LoginForm() %}
-          <form method="post" accept-charset="utf-8">
-            <div class="mb-3">
-              <b>
-                {{ form.name.label(class="form-label") }}
-                <span class="text-danger">*</span>
-              </b>
-              {{ form.name(class="form-control", value=name, autocomplete="username email") }}
-            </div>
-
-            <div class="mb-3">
-              <b>
-                {{ form.password.label(class="form-label") }}
-                <span class="text-danger">*</span>
-              </b>
-              {{ form.password(class="form-control", value=password, autocomplete="current-password") }}
-            </div>
-
-            <div class="row pt-3">
-              <div class="col-6 col-md-8">
-                <a class="align-middle" href="{{ url_for('auth.reset_password') }}">
-                  {% trans %}Forgot your password?{% endtrans %}
-                </a>
-              </div>
-
-              <div class="col-6 col-md-4">
-                {{ form.submit(class="btn btn-block btn-primary w-100") }}
-              </div>
+            <div class="auth-container">
+              <h2>Connexion au CTF Securitiie</h2>
+              <p>Utilisez votre compte ENSIIE pour vous connecter.</p>
+              <a class="btn btn-block btn-primary w-100" href="/sso/login/4">Connexion ENSIIE</a>
             </div>
 
             {{ form.nonce() }}
