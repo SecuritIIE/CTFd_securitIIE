@@ -145,20 +145,6 @@
           </li>
         {% else %}
 
-          {% if registration_visible() %}
-            <li class="nav-item">
-              <a class="nav-link" href="{{ url_for('auth.register') }}">
-                <span data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans %}Register{% endtrans %}">
-                  <i class="fas fa-user-plus d-none d-md-inline d-lg-none"></i>
-                </span>
-                <span class="d-sm-inline d-md-none d-lg-inline">
-                  <i class="fas fa-user-plus pe-1"></i>
-                  {% trans %}Register{% endtrans %}
-                </span>
-              </a>
-            </li>
-          {% endif %}
-
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('auth.login') }}">
               <span data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans %}Login{% endtrans %}">
