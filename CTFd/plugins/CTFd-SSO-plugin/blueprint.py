@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, redirect, render_template, request, url_for
 from wtforms import StringField
 from wtforms.validators import InputRequired
@@ -98,8 +100,9 @@ def load_bp(oauth):
         user_roles = api_data.get("roles")
 
         ### Rajout pour SecuritIIE : on vérifie si l'utilisateur fait partie du groupe SecuritIIE
-        log("logins", f"SSO api_data: {api_data!r}")
-        log("logins", f"SSO groups raw: {api_data.get('groups')!r}")
+        import logging
+        logging.warning("SSO api_data = %r", api_data)
+        logging.warning("SSO groups raw = %r", api_data.get("groups"))
         arise_groups = api_data.get("groups", [])
         is_securitiie_admin = False
 
