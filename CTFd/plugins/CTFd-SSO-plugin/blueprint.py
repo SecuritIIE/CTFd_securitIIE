@@ -97,6 +97,9 @@ def load_bp(oauth):
         user_email = api_data["email"]
         user_roles = api_data.get("roles")
 
+        ### Rajout pour SecuritIIE : on vérifie si l'utilisateur fait partie du groupe SecuritIIE
+        log("logins", f"SSO api_data: {api_data!r}")
+        log("logins", f"SSO groups raw: {api_data.get('groups')!r}")
         arise_groups = api_data.get("groups", [])
         is_securitiie_admin = False
 
@@ -142,6 +145,7 @@ def load_bp(oauth):
                 user = Users.query.filter_by(email=user_email).first()
                 clear_user_session(user_id=user.id)
 
+        ### On donne les droits admin à l'utilisateur s'il fait partie du groupe SecuritIIE
         if is_securitiie_admin and user.type != "admin":
             user.type = "admin"
             db.session.commit()
