@@ -100,22 +100,20 @@ def load_bp(oauth):
         user_roles = api_data.get("roles")
 
         ### Rajout pour SecuritIIE : on vérifie si l'utilisateur fait partie du groupe SecuritIIE
-        import logging
-        logging.warning("SSO api_data = %r", api_data)
-        logging.warning("SSO groups raw = %r", api_data.get("groups"))
-        arise_groups = api_data.get("groups", [])
-        is_securitiie_admin = False
+        admin_groups = api_data.get("admin_groups", [])
+        owner_groups = api_data.get("owner_groups", [])
 
-        for entry in arise_groups:
-            group = entry.get("group", {})
-            role = entry.get("role", {})
+        if isinstance(admin_groups, str):
+            admin_groups = [admin_groups]
 
-            group_name = group.get("name")
-            role_value = role.get("value")
+        if isinstance(owner_groups, str):
+            owner_groups = [owner_groups]
 
-            if group_name == "SecuritIIE" and role_value in ["OWNER", "ADMIN"]:
-                is_securitiie_admin = True
-                break
+        is_securitiie_admin = (
+            "securitiie" in admin_groups or
+            "securitiie" in owner_groups
+        )
+
 
 
         user = Users.query.filter_by(email=user_email).first()
@@ -140,13 +138,14 @@ def load_bp(oauth):
         user.verified = True
         db.session.commit()
 
-        if user_roles is not None and len(user_roles) > 0 and user_roles[0] in ["admin", "user"]:
-            user_role = user_roles[0]
-            if user_role != user.type:
-                user.type = user_role
-                db.session.commit()
-                user = Users.query.filter_by(email=user_email).first()
-                clear_user_session(user_id=user.id)
+        ### Obsolete code for admin role
+        # if user_roles is not None and len(user_roles) > 0 and user_roles[0] in ["admin", "user"]:
+        #     user_role = user_roles[0]
+        #     if user_role != user.type:
+        #         user.type = user_role
+        #         db.session.commit()
+        #         user = Users.query.filter_by(email=user_email).first()
+        #         clear_user_session(user_id=user.id)
 
         ### On donne les droits admin à l'utilisateur s'il fait partie du groupe SecuritIIE
         if is_securitiie_admin and user.type != "admin":
