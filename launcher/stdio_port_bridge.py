@@ -48,7 +48,7 @@ def stdout_to_socket(sock: socket.socket, proc: subprocess.Popen) -> None:
         if not proc.stdout:
             return
         while not STOP_EVENT.is_set():
-            chunk = proc.stdout.read(4096)
+            chunk = os.read(proc.stdout.fileno(), 4096)
             if not chunk:
                 break
             sock.sendall(chunk)
