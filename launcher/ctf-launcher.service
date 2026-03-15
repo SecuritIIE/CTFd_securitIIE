@@ -1,6 +1,6 @@
 [Unit]
 Description=CTF Instance Launcher
-Documentation=https://github.com/votre-org/CTFd
+Documentation=https://github.com/SecuritIIE/CTFd_securitIIE
 # Démarre après que le réseau soit disponible (CTFd en Docker peut être encore absent)
 After=network.target
 
@@ -20,8 +20,8 @@ RestartSec=5
 
 # Redirige stdout/stderr dans le fichier de log du launcher
 # (le logger Python y écrit aussi, c'est redondant mais pratique pour systemd)
-StandardOutput=append:/opt/ctf/launcher/logs/launcher.log
-StandardError=append:/opt/ctf/launcher/logs/launcher.log
+StandardOutput=journal
+StandardError=journal
 
 # ---- Variables d'environnement ----
 # Dossier des binaires de challenges
@@ -31,6 +31,9 @@ Environment=CTF_PORT_START=30000
 Environment=CTF_PORT_END=40000
 # Durée de vie d'une instance en secondes (900 = 15 min)
 Environment=CTF_INSTANCE_TIMEOUT=900
+# Bind HTTP du launcher (0.0.0.0 requis si CTFd tourne en Docker sur le même hôte)
+Environment=CTF_BIND_HOST=0.0.0.0
+Environment=CTF_BIND_PORT=5001
 
 # ---- Sécurité de base ----
 # Pas d'élévation de privilège

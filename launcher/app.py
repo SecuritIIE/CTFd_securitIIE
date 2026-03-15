@@ -1,8 +1,14 @@
 """
 CTF Instance Launcher — Service HTTP local
 -------------------------------------------
-Écoute sur 127.0.0.1:5001.
-NE JAMAIS exposer ce port au réseau public.
+Par défaut, écoute sur 127.0.0.1:5001.
+
+Si CTFd tourne en Docker et le launcher sur l'hôte, configure:
+    - CTF_BIND_HOST=0.0.0.0 (ou IP de l'interface docker, ex. 172.17.0.1)
+    - CTF_BIND_PORT=5001
+
+Puis côté CTFd:
+    - LAUNCHER_URL=http://host.docker.internal:5001
 
 Routes :
   POST /instance/create  { user_id, challenge_id }  → { status, port, expires_at }
@@ -42,6 +48,9 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 app = Flask(__name__)
 manager = InstanceManager()
+
+BIND_HOST = os.environ.get("CTF_BIND_HOST", "127.0.0.1")
+BIND_PORT = int(os.environ.get("CTF_BIND_PORT", "5001"))
 
 
 # ---------------------------------------------------------------------------
@@ -116,5 +125,5 @@ def health():
 # Entrée principale
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    log.info("CTF Instance Launcher démarré sur 127.0.0.1:5001")
-    app.run(host="127.0.0.1", port=5001, debug=False, threaded=True)
+    log.info("CTF Instance Launcher démarré sur %s:%d", BIND_HOST, BIND_PORT)
+    app.run(host=BIND_HOST, port=BIND_PORT, debug=False, threaded=True)
