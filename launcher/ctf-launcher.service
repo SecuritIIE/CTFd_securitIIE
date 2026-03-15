@@ -1,0 +1,48 @@
+[Unit]
+Description=CTF Instance Launcher
+Documentation=https://github.com/votre-org/CTFd
+# Démarre après que le réseau soit disponible (CTFd en Docker peut être encore absent)
+After=network.target
+
+[Service]
+Type=simple
+User=ctf
+Group=ctf
+
+WorkingDirectory=/opt/ctf/launcher
+
+# Virtualenv dédié au launcher (séparé du venv de CTFd)
+ExecStart=/opt/ctf/launcher/venv/bin/python app.py
+
+# Redémarre automatiquement en cas de crash
+Restart=on-failure
+RestartSec=5
+
+# Redirige stdout/stderr dans le fichier de log du launcher
+# (le logger Python y écrit aussi, c'est redondant mais pratique pour systemd)
+StandardOutput=append:/opt/ctf/launcher/logs/launcher.log
+StandardError=append:/opt/ctf/launcher/logs/launcher.log
+
+# ---- Variables d'environnement ----
+# Dossier des binaires de challenges
+Environment=CTF_CHALLENGES_DIR=/opt/ctf/challenges
+# Plage de ports à allouer aux instances
+Environment=CTF_PORT_START=30000
+Environment=CTF_PORT_END=40000
+# Durée de vie d'une instance en secondes (900 = 15 min)
+Environment=CTF_INSTANCE_TIMEOUT=900
+
+# ---- Sécurité de base ----
+# Pas d'élévation de privilège
+NoNewPrivileges=yes
+# /tmp propre et isolé
+PrivateTmp=yes
+# Système de fichiers racine en lecture seule, sauf les chemins explicitement listés
+ProtectSystem=strict
+# Le launcher doit pouvoir écrire dans son propre dossier (logs, state.db, challenges en lecture)
+ReadWritePaths=/opt/ctf/launcher
+# Accès en lecture aux binaires des challenges
+ReadOnlyPaths=/opt/ctf/challenges
+
+[Install]
+WantedBy=multi-user.target
