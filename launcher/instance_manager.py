@@ -8,7 +8,9 @@ Règles :
   - Un thread de fond (CleanupThread) supprime les instances expirées toutes
     les 30 s sans intervention manuelle
 
-Chaque challenge doit fournir un binaire qui accepte --port <n> en argument.
+Chaque challenge doit fournir un exécutable en mode STDIN/STDOUT (pas de --port).
+Le launcher démarre un bridge Python qui expose un port TCP et relie chaque client
+au programme challenge via stdin/stdout.
 Structure attendue sur le disque :
     $CTF_CHALLENGES_DIR/<challenge_id>/server_binary
 """
@@ -18,6 +20,7 @@ import os
 import signal
 import sqlite3
 import subprocess
+import sys
 import time
 
 from cleanup import CleanupThread
@@ -34,6 +37,7 @@ CHALLENGES_DIR    = os.environ.get("CTF_CHALLENGES_DIR", "/opt/ctf/challenges")
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 DB_PATH   = os.path.join(BASE_DIR, "state.db")
 LOGS_DIR  = os.path.join(BASE_DIR, "logs")
+BRIDGE_PATH = os.path.join(BASE_DIR, "stdio_port_bridge.py")
 
 # Délai (s) avant SIGKILL après un SIGTERM
 SIGTERM_GRACE = 3
@@ -120,6 +124,8 @@ class InstanceManager:
         binary_path = os.path.join(CHALLENGES_DIR, challenge_id, "server_binary")
         if not os.path.isfile(binary_path):
             raise FileNotFoundError(f"Binaire introuvable : {binary_path}")
+        if not os.path.isfile(BRIDGE_PATH):
+            raise FileNotFoundError(f"Bridge introuvable : {BRIDGE_PATH}")
 
         port       = self.port_allocator.allocate()
         now        = time.time()
@@ -131,12 +137,20 @@ class InstanceManager:
 
         with open(log_path, "a") as log_file:
             proc = subprocess.Popen(
-                [binary_path, "--port", str(port)],
+                [
+                    sys.executable,
+                    BRIDGE_PATH,
+                    "--listen-port",
+                    str(port),
+                    "--exec",
+                    binary_path,
+                ],
                 stdout=log_file,
                 stderr=log_file,
                 close_fds=True,
                 # Isole le processus pour qu'un Ctrl+C sur le launcher ne le tue pas
                 start_new_session=True,
+                cwd=os.path.dirname(binary_path),
             )
 
         with sqlite3.connect(DB_PATH) as conn:
