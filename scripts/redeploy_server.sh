@@ -10,6 +10,7 @@ SERVICE_DST="/etc/systemd/system/ctf-launcher.service"
 CTF_USER="ctf"
 RESTART_CTFD=1
 BUILD_CTFD=1
+VENV_PYTHON="$LAUNCHER_DST/venv/bin/python"
 
 usage() {
   cat <<'EOF'
@@ -98,11 +99,21 @@ log "Permissions launcher"
 sudo chown -R "$CTF_USER:$CTF_USER" "$LAUNCHER_DST"
 
 log "Virtualenv Python du launcher"
-if [[ ! -x "$LAUNCHER_DST/venv/bin/python" ]]; then
+if [[ ! -x "$VENV_PYTHON" ]]; then
   sudo -u "$CTF_USER" python3 -m venv "$LAUNCHER_DST/venv"
 fi
-sudo -u "$CTF_USER" "$LAUNCHER_DST/venv/bin/pip" install --upgrade pip
-sudo -u "$CTF_USER" "$LAUNCHER_DST/venv/bin/pip" install -r "$LAUNCHER_DST/requirements.txt"
+
+if ! sudo -u "$CTF_USER" "$VENV_PYTHON" -m pip --version >/dev/null 2>&1; then
+  log "Bootstrap de pip dans le virtualenv"
+  if ! sudo -u "$CTF_USER" "$VENV_PYTHON" -m ensurepip --upgrade >/dev/null 2>&1; then
+    echo "Impossible d'installer pip dans $LAUNCHER_DST/venv." >&2
+    echo "Installez le paquet système python3-venv (et éventuellement python3-pip), puis relancez le script." >&2
+    exit 1
+  fi
+fi
+
+sudo -u "$CTF_USER" "$VENV_PYTHON" -m pip install --upgrade pip
+sudo -u "$CTF_USER" "$VENV_PYTHON" -m pip install -r "$LAUNCHER_DST/requirements.txt"
 
 log "Redémarrage du service ctf-launcher"
 sudo systemctl daemon-reload
