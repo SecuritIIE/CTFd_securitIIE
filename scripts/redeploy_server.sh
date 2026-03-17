@@ -11,6 +11,7 @@ CTF_USER="ctf"
 RESTART_CTFD=1
 BUILD_CTFD=1
 VENV_PYTHON="$LAUNCHER_DST/venv/bin/python"
+DOCKER_COMPOSE_CMD=()
 
 usage() {
   cat <<'EOF'
@@ -70,6 +71,36 @@ require_cmd() {
   fi
 }
 
+ensure_docker_compose() {
+  require_cmd docker
+
+  if ! sudo docker info >/dev/null 2>&1; then
+    log "Démarrage du service docker"
+    sudo systemctl enable docker >/dev/null 2>&1 || true
+    sudo systemctl start docker >/dev/null 2>&1 || true
+  fi
+
+  if ! sudo docker info >/dev/null 2>&1; then
+    echo "Docker est installé mais le démon ne répond pas." >&2
+    echo "Vérifiez le service avec: sudo systemctl status docker" >&2
+    exit 1
+  fi
+
+  if sudo docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD=(sudo docker compose)
+    return
+  fi
+
+  if command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD=(sudo docker-compose)
+    return
+  fi
+
+  echo "Docker Compose est introuvable." >&2
+  echo "Installez le plugin 'docker compose' ou le binaire 'docker-compose', puis relancez le script." >&2
+  exit 1
+}
+
 require_cmd git
 require_cmd python3
 require_cmd sudo
@@ -122,12 +153,12 @@ sudo systemctl restart ctf-launcher
 sudo systemctl --no-pager --full status ctf-launcher || true
 
 if [[ $RESTART_CTFD -eq 1 ]]; then
-  require_cmd docker
+  ensure_docker_compose
   log "Relance de CTFd via docker compose"
   if [[ $BUILD_CTFD -eq 1 ]]; then
-    sudo docker compose up -d --build
+    "${DOCKER_COMPOSE_CMD[@]}" up -d --build
   else
-    sudo docker compose up -d
+    "${DOCKER_COMPOSE_CMD[@]}" up -d
   fi
 fi
 

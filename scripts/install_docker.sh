@@ -1,38 +1,35 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Script to install docker in Debian Guest VM
-# per: https://docs.docker.com/engine/installation/linux/debian/#install-docker-ce
+# Script to install Docker Engine + Docker Compose plugin on Debian/Ubuntu.
 
-# Install packages to allow apt to use a repository over HTTPS
+sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-    python-pip \
-    apt-transport-https \
     ca-certificates \
     curl \
-    gnupg2 \
-    software-properties-common
+    gnupg
 
-# Add Docker’s official GPG key
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/$(. /etc/os-release && echo "$ID")/gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# Set up the stable repository. 
-sudo add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/$(. /etc/os-release && echo \"$ID\") \
+  $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
 
-# Update the apt package index
 sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-buildx-plugin \
+    docker-compose-plugin
 
-# Install the latest version of Docker
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce
+# Warning: The docker group grants privileges equivalent to the root user.
+sudo usermod -aG docker "${USER}"
 
-# Add user to the docker group
-# Warning: The docker group grants privileges equivalent to the root user. 
-sudo usermod -aG docker ${USER}
+sudo systemctl enable --now docker
 
-# Configure Docker to start on boot
-sudo systemctl enable docker
-
-# Install docker-compose
-pip install docker-compose
+echo "Docker and docker compose are installed. Reconnect your shell to pick up docker group membership."
