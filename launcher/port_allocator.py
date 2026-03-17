@@ -8,6 +8,7 @@ que le port est libre au niveau système.
 """
 
 import os
+import random
 import socket
 import threading
 
@@ -32,7 +33,9 @@ class PortAllocator:
         Lève RuntimeError si toute la plage est épuisée.
         """
         with self._lock:
-            for port in range(PORT_RANGE_START, PORT_RANGE_END):
+            candidates = list(range(PORT_RANGE_START, PORT_RANGE_END))
+            random.SystemRandom().shuffle(candidates)
+            for port in candidates:
                 if port not in self._used and self._is_port_free(port):
                     self._used.add(port)
                     return port

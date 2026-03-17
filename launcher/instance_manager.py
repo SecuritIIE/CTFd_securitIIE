@@ -17,6 +17,7 @@ Structure attendue sur le disque :
 
 import logging
 import os
+import random
 import signal
 import sqlite3
 import subprocess
@@ -33,6 +34,8 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 INSTANCE_TIMEOUT  = int(os.environ.get("CTF_INSTANCE_TIMEOUT", 15 * 60))  # 15 min
 CHALLENGES_DIR    = os.environ.get("CTF_CHALLENGES_DIR", "/opt/ctf/challenges")
+HOST_SUFFIX       = os.environ.get("CTF_HOST_SUFFIX", "ctf.octavelouvel.fr").strip(".")
+HOST_PREFIX_LEN   = int(os.environ.get("CTF_HOST_PREFIX_LEN", "8"))
 
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 DB_PATH   = os.path.join(BASE_DIR, "state.db")
@@ -73,9 +76,15 @@ class InstanceManager:
                     port          INTEGER NOT NULL,
                     pid           INTEGER NOT NULL,
                     started_at    REAL    NOT NULL,
-                    expires_at    REAL    NOT NULL
+                    expires_at    REAL    NOT NULL,
+                    host          TEXT
                 )
             """)
+            columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(instances)").fetchall()
+            }
+            if "host" not in columns:
+                conn.execute("ALTER TABLE instances ADD COLUMN host TEXT")
             conn.commit()
 
     def _restore_state(self) -> None:
@@ -131,6 +140,7 @@ class InstanceManager:
         now        = time.time()
         expires_at = now + INSTANCE_TIMEOUT
         key        = self._make_key(user_id, challenge_id)
+        host       = self._generate_random_host()
 
         os.makedirs(LOGS_DIR, exist_ok=True)
         log_path = os.path.join(LOGS_DIR, f"instance_{key.replace(':', '_')}.log")
@@ -155,8 +165,10 @@ class InstanceManager:
 
         with sqlite3.connect(DB_PATH) as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO instances VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (key, user_id, challenge_id, port, proc.pid, now, expires_at),
+                "INSERT OR REPLACE INTO instances "
+                "(instance_key, user_id, challenge_id, port, pid, started_at, expires_at, host) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (key, user_id, challenge_id, port, proc.pid, now, expires_at, host),
             )
             conn.commit()
 
@@ -165,7 +177,7 @@ class InstanceManager:
             user_id, challenge_id, port, proc.pid,
             time.strftime("%H:%M:%S", time.localtime(expires_at)),
         )
-        return {"port": port, "expires_at": expires_at}
+        return {"port": port, "expires_at": expires_at, "host": host}
 
     def find_instance(self, user_id: int, challenge_id: str) -> dict | None:
         """
@@ -178,7 +190,7 @@ class InstanceManager:
 
         with sqlite3.connect(DB_PATH) as conn:
             row = conn.execute(
-                "SELECT port, pid, expires_at FROM instances "
+                "SELECT port, pid, expires_at, host FROM instances "
                 "WHERE instance_key = ? AND expires_at > ?",
                 (key, now),
             ).fetchone()
@@ -186,7 +198,7 @@ class InstanceManager:
         if not row:
             return None
 
-        port, pid, expires_at = row
+        port, pid, expires_at, host = row
 
         if not self._pid_alive(pid):
             log.info("Process mort détecté pour %s → nettoyage", key)
@@ -194,7 +206,16 @@ class InstanceManager:
             self.port_allocator.release(port)
             return None
 
-        return {"port": port, "expires_at": expires_at}
+        if not host:
+            host = self._generate_random_host()
+            with sqlite3.connect(DB_PATH) as conn:
+                conn.execute(
+                    "UPDATE instances SET host = ? WHERE instance_key = ?",
+                    (host, key),
+                )
+                conn.commit()
+
+        return {"port": port, "expires_at": expires_at, "host": host}
 
     def stop_instance(self, user_id: int, challenge_id: str) -> bool:
         """
@@ -249,6 +270,12 @@ class InstanceManager:
     @staticmethod
     def _make_key(user_id: int, challenge_id: str) -> str:
         return f"{user_id}:{challenge_id}"
+
+    @staticmethod
+    def _generate_random_host() -> str:
+        alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+        prefix = "".join(random.SystemRandom().choice(alphabet) for _ in range(HOST_PREFIX_LEN))
+        return f"{prefix}.{HOST_SUFFIX}"
 
     @staticmethod
     def _pid_alive(pid: int) -> bool:

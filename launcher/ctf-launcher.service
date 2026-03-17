@@ -31,6 +31,9 @@ Environment=CTF_PORT_START=30000
 Environment=CTF_PORT_END=40000
 # Durée de vie d'une instance en secondes (900 = 15 min)
 Environment=CTF_INSTANCE_TIMEOUT=900
+# Hostname retourné aux joueurs: <prefix_random>.<suffix>
+Environment=CTF_HOST_SUFFIX=ctf.securitiie.iiens.net
+Environment=CTF_HOST_PREFIX_LEN=8
 # Bind HTTP du launcher (0.0.0.0 requis si CTFd tourne en Docker sur le même hôte)
 Environment=CTF_BIND_HOST=0.0.0.0
 Environment=CTF_BIND_PORT=5001

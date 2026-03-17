@@ -120,7 +120,7 @@ def launch_instance(challenge_id: int):
     try:
         result = launch_instance_for_user(user.id, str(challenge_id))
         if result.get("status") == "ok":
-            result["host"] = _ctf_host()
+            result["host"] = result.get("host") or _ctf_host()
         return jsonify(result)
 
     except requests.ConnectionError:
@@ -144,7 +144,7 @@ def instance_status(challenge_id: int):
     try:
         result = get_instance_info_for_user(user.id, str(challenge_id))
         if result.get("status") == "ok":
-            result["host"] = _ctf_host()
+            result["host"] = result.get("host") or _ctf_host()
         return jsonify(result)
 
     except requests.ConnectionError:
