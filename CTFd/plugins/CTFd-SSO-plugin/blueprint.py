@@ -20,6 +20,15 @@ from .models import OAuthClients
 plugin_bp = Blueprint('sso', __name__, template_folder='templates', static_folder='static', static_url_path='/static/sso')
 
 
+def config_truthy(key, default=False):
+    value = get_app_config(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ('1', 'true', 'yes', 'on')
+    return bool(value)
+
+
 class OAuthForm(BaseForm):
     name = StringField("Client name", validators=[InputRequired()])
     client_id = StringField("OAuth client id", validators=[InputRequired()])
@@ -85,6 +94,13 @@ def load_bp(oauth):
     @plugin_bp.route("/sso/login/<int:client_id>", methods = ['GET'])
     def sso_oauth(client_id):
         client = oauth.create_client(client_id)
+        if client is None:
+            logging.warning("SSO client id=%s not found in oauth registry", client_id)
+            error_for(
+                endpoint="auth.login",
+                message="SSO provider is not configured. Please contact an administrator.",
+            )
+            return redirect(url_for("auth.login"))
         redirect_uri=url_for('sso.sso_redirect', client_id=client_id, _external=True)
         return client.authorize_redirect(redirect_uri)
 
@@ -92,6 +108,13 @@ def load_bp(oauth):
     @plugin_bp.route("/sso/redirect/<int:client_id>", methods = ['GET'])
     def sso_redirect(client_id):
         client = oauth.create_client(client_id)
+        if client is None:
+            logging.warning("SSO redirect with unknown client id=%s", client_id)
+            error_for(
+                endpoint="auth.login",
+                message="SSO provider is not configured. Please contact an administrator.",
+            )
+            return redirect(url_for("auth.login"))
         client.authorize_access_token()
         api_data = client.get('').json()
 
@@ -119,7 +142,7 @@ def load_bp(oauth):
         user = Users.query.filter_by(email=user_email).first()
         if user is None:
             # Check if we are allowing registration before creating users
-            if registration_visible() or get_app_config("OAUTH_ALWAYS_POSSIBLE") == True:
+            if registration_visible() or config_truthy("OAUTH_ALWAYS_POSSIBLE", False):
                 user = Users(
                     name=user_name,
                     email=user_email,

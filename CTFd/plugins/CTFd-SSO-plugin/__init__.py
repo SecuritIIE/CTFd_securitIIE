@@ -16,6 +16,15 @@ PLUGIN_PATH = os.path.dirname(__file__)
 CONFIG = json.load(open("{}/config.json".format(PLUGIN_PATH)))
 
 
+def config_truthy(key, default=False):
+    value = get_app_config(key, default)
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
+
+
 def oauth_clients():
     return OAuthClients.query.all()
 
@@ -59,7 +68,7 @@ def load(app):
     app.jinja_env.globals.update(oauth_clients=oauth_clients)
 
     # Update the login template
-    if get_app_config("OAUTH_CREATE_BUTTONS") == True:
+    if config_truthy("OAUTH_CREATE_BUTTONS", False):
         update_login_template(app)
 
     # Register the blueprint containing the routes
