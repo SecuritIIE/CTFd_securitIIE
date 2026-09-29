@@ -1,6 +1,12 @@
+# Nom de projet figé -> les réseaux s'appellent ctfd_frp_containers, ctfd_frp_connect...
+# (référencés tels quels dans la config Whale: whale:docker_auto_connect_network)
+name: ctfd
+
 services:
   ctfd:
     build: .
+    # root est nécessaire pour accéder au socket Docker monté (spawn des challenges via Whale)
+    user: root
     restart: always
     ports:
       - "127.0.0.1:8000:8000"
@@ -19,6 +25,8 @@ services:
       - .data/CTFd/logs:/var/log/CTFd
       - .data/CTFd/uploads:/var/uploads
       - .:/opt/CTFd:ro
+      # Whale pilote Docker (swarm) via le socket
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       permissions:
         condition: service_completed_successfully
@@ -26,9 +34,47 @@ services:
         condition: service_started
       cache:
         condition: service_started
+      frpc:
+        condition: service_started
     networks:
         default:
         internal:
+        frp_connect:
+
+  # ---- CTFd-Whale : reverse proxy frp ----
+  frps:
+    image: glzjin/frp
+    restart: always
+    volumes:
+      - ./conf/frp:/conf
+    entrypoint:
+      - /usr/local/bin/frps
+      - -c
+      - /conf/frps.ini
+    ports:
+      - "10000-10100:10000-10100"  # challenges "direct" (nc host port)
+      - "8001:8001"                # challenges "http" (vhost)
+    depends_on:
+      - cache
+    networks:
+      default:       # pour publier les ports sur l'hôte
+      frp_connect:
+
+  frpc:
+    image: glzjin/frp
+    restart: always
+    volumes:
+      - ./conf/frp:/conf
+    entrypoint:
+      - /usr/local/bin/frpc
+      - -c
+      - /conf/frpc.ini
+    depends_on:
+      - frps
+    networks:
+      frp_connect:
+        ipv4_address: 172.1.0.3
+      frp_containers:
 
   # TODO: CTFd 4.0 Migrate to named volumes. Users will likely need to manually migrate existing files
   permissions:
@@ -80,3 +126,19 @@ networks:
     default:
     internal:
         internal: true
+    # frpc <-> frps <-> ctfd (overlay swarm, isolé de l'extérieur)
+    frp_connect:
+        driver: overlay
+        internal: true
+        attachable: true
+        ipam:
+            config:
+                - subnet: 172.1.0.0/16
+    # réseau des containers de challenge, joint par frpc pour les proxifier
+    frp_containers:
+        driver: overlay
+        attachable: true
+        internal: true
+        ipam:
+            config:
+                - subnet: 172.2.0.0/16

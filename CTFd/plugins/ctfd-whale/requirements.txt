@@ -1,0 +1,6 @@
+# Adjusted for CTFd 3.8.2 compatibility (do not pin redis: CTFd requires redis>=4).
+# - docker bumped from 4.1.0 -> 6.1.3 for urllib3 2.x compatibility
+# - redis==3.3.11 pin removed (conflicted with CTFd's redis==4.5.5)
+docker==6.1.3
+Flask-APScheduler==1.11.0
+flask-redis==0.4.0
