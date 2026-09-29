@@ -18,7 +18,8 @@ def setup_default_configs():
         # Overlay network created by our docker-compose (project name "ctfd").
         # frpc and challenge containers must share this network.
         'docker_auto_connect_network': 'ctfd_frp_containers',
-        'frp_api_url': 'http://frpc:7400',
+        # Basic Auth (voir conf/frp/frpc.ini : admin_user / admin_pwd)
+        'frp_api_url': 'http://whale:f891f47a99ce51dab6825989@frpc:7400',
         # http challenges: must match vhost_http_port in frps.ini + wildcard domain
         'frp_http_port': '8001',
         'frp_http_domain_suffix': 'ctf.securitiie.iiens.net',

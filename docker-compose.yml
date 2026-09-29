@@ -72,8 +72,9 @@ services:
     depends_on:
       - frps
     networks:
+      # IP dynamique : une IP statique sur overlay swarm échoue (context deadline
+      # exceeded). L'API admin frpc est protégée par Basic Auth (voir frpc.ini).
       frp_connect:
-        ipv4_address: 172.1.0.3
       frp_containers:
 
   # TODO: CTFd 4.0 Migrate to named volumes. Users will likely need to manually migrate existing files
